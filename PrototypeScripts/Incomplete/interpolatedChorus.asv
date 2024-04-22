@@ -8,9 +8,7 @@ clear; clc; close all;
 
 % Pulling the test audio file
 rootdirectory = '/Users/jackdonsurfer/Documents/MATLAB/InputFiles/';
-[input, Fs] = audioread(fullfile(rootdirectory, 'HoldOnJLMain_Main.01-St.wav'));
-
-x = input(1:end, 1);
+[x, Fs] = audioread(fullfile(rootdirectory, 'AcGtr.wav'));
 
 % Setting up potentially useful variables
 Ts = 1/Fs;
@@ -20,11 +18,11 @@ N = length(x);
 t = [0:N-1]' * Ts;
 
 % Input parameters
-offsetMS = 25; % in ms
+offsetMS = 15; % in ms
 depthMS = 2; % in ms
 rate = 1; % in Hz
 mix = 50; % in percentage
-flangerBool = false; % true: flanger, false: chorus
+flangerBool = true; % true: flanger, false: chorus
 interpolationType = "linear"; % "linear" "cubic" or "none"
 mixCoefficient = mix * 0.01; % converting percentage to decimal
 
@@ -32,7 +30,7 @@ mixCoefficient = mix * 0.01; % converting percentage to decimal
 % A conditional check to 
 if(~flangerBool) 
     offsetSamples = round((offsetMS/1000) * Fs);
-    depthSamples = round((depthMS/2000) * Fs);
+    depthSamples = round((depthMS/1000) * Fs);
 else
     offsetSamples = 3; % Hypothetical values
     depthSamples = 3;
@@ -45,15 +43,20 @@ delayedSignal = zeros(N, 1);
 % The interator for a chorus with linear interpolation
 if(interpolationType == "linear")
     for n = 1:N
-        if(n > (offsetSamples + 1))
-            momentaryDelay = offsetSamples - LFO(n-offsetSamples, 1);
-            floorOfLFOAndOffset = floor(momentaryDelay);
-            remainderOfLFOAndOffset = momentaryDelay - floorOfLFOAndOffset;
-            
-
-            delayedSignal(n , 1) = (remainderOfLFOAndOffset * x(n - floorOfLFOAndOffset - 1)) ... 
+        if(n > offsetSamples)
+            delayedSig(n , 1) = (remainderOfLFOAndOffset * x(n - floorOfLFOAndOffset - 1)) ... 
 	+ ((1 - remainderOfLFOAndOffset)* x(n - floorOfLFOAndOffset));
 
+
+
+
+
+            momentaryDelay = offsetSamples + LFO(n-offsetSamples, 1);
+            Aflr = floor(momentaryDelay);
+            Aremainder = momentaryDelay - Aflr;
+
+            delayedSignal(n, 1) = (x(Aremainder * (n - (Aflr + 1)), 1)) ...
+                + x((n - Aflr) * (1 - Aremainder), 1);
         else
             delayedSignal(n, 1) = 0;
         end
@@ -81,11 +84,9 @@ else
     end
 end
 
-
+plot(delayedSignal);
 
 y = (x * (1 - mixCoefficient)) + (delayedSignal * mixCoefficient);
 
-%plot(x);
-
-sound([y], Fs);
+%sound([x; y], Fs);
 
